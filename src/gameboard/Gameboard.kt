@@ -357,7 +357,11 @@ class Gameboard(inputField: String) {
     private fun gameover() {
         stones.clear()
         lambdaStones.clear()
-        println(score)
+        //println(score)
+    }
+
+    fun getFlooding(): Int {
+        return flooding
     }
 
     fun getScore(): Int {
@@ -366,6 +370,26 @@ class Gameboard(inputField: String) {
 
     fun getState(): State {
         return state
+    }
+
+    fun getField(): MutableList<MutableList<Char>> {
+        return field
+    }
+
+    fun getRobot(): Point {
+        return robot
+    }
+
+    fun getLift(): Point {
+        return lift
+    }
+
+    fun getListOfLambdas(): MutableList<Point> {
+        val listOfLambdas = mutableListOf<Point>()
+        for (i in 0..(field.size - 1))
+            for (j in 0..(field[i].size - 1))
+                if (field[i][j] == '\\') listOfLambdas.add(Point(i, j))
+        return listOfLambdas
     }
 
     fun printField() {
