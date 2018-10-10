@@ -38,15 +38,15 @@ class Gameboard(inputField: String) {
                 for ((k, char) in line.toCharArray().withIndex()) {
                     field[j].add(k, char)
                     when (char) {
-                        'R' -> robot.setNewPoint(j, k)
-                        '*' -> stones.add(Point(j, k))
-                        '@' -> {
+                        Token.ROBOT.symbol -> robot.setNewPoint(j, k)
+                        Token.STONE.symbol -> stones.add(Point(j, k))
+                        Token.LAMBDA_STONE.symbol -> {
                             lambdaStones.add(Point(j, k))
                             allLambdas++
                         }
-                        'W' -> beards.add(Point(j, k))
-                        '\\' -> allLambdas++
-                        'L' -> lift.setNewPoint(j, k)
+                        Token.BEARD.symbol -> beards.add(Point(j, k))
+                        Token.LAMBDA.symbol -> allLambdas++
+                        Token.CLOSED_LIFT.symbol -> lift.setNewPoint(j, k)
                         in 'A'..'I' -> trampolinesPoints[char] = Point(j, k)
                         in '1'..'9' -> trampolinesPoints[char] = Point(j, k)
                     }
@@ -88,6 +88,28 @@ class Gameboard(inputField: String) {
         }
     }
 
+    enum class Token(val symbol: Char) {
+        ROBOT('R'),
+        LAMBDA('\\'),
+        STONE('*'),
+        LAMBDA_STONE('@'),
+        EARTH('.'),
+        EMPTY(' '),
+        WALL('#'),
+        BEARD('W'),
+        RAZOR('!'),
+        CLOSED_LIFT('L'),
+        OPENED_LIFT('O');
+    }
+
+    fun isPassable(sign: Char): Boolean {
+        return sign == Token.LAMBDA.symbol || sign == Token.EARTH.symbol || sign == Token.EMPTY.symbol || sign == Token.RAZOR.symbol || sign == Token.OPENED_LIFT.symbol
+    }
+
+    fun isStoneOrLambdaStone(sign: Char): Boolean {
+        return sign == Token.STONE.symbol || sign == Token.LAMBDA_STONE.symbol
+    }
+
     enum class State {
         LIVE,
         ABORTED,
@@ -124,46 +146,36 @@ class Gameboard(inputField: String) {
         if (currentWaterproof >= 0) {
             val yPoint = robot.y + move.y
             val xPoint = robot.x + move.x
-            if (field[yPoint][xPoint] != '#' &&
-                    field[yPoint][xPoint] != 'W' &&
-                    field[yPoint][xPoint] != 'L' &&
-                    (field[yPoint][xPoint] != '1' ||
-                    field[yPoint][xPoint] != '2' ||
-                    field[yPoint][xPoint] != '3' ||
-                    field[yPoint][xPoint] != '4' ||
-                    field[yPoint][xPoint] != '5' ||
-                    field[yPoint][xPoint] != '6' ||
-                    field[yPoint][xPoint] != '7' ||
-                    field[yPoint][xPoint] != '8' ||
-                    field[yPoint][xPoint] != '9')) { // если след координата робота НЕ стена, НЕ борода, НЕ закрытый лифт, НЕ выход трамплина
+            if (isPassable(field[yPoint][xPoint]) &&
+                    field[yPoint][xPoint] !in '1'..'9') { // если след координата робота НЕ стена, НЕ борода, НЕ закрытый лифт, НЕ выход трамплина
                 when (field[yPoint][xPoint]) {
-                    '.' -> updateRobot(yPoint, xPoint) // земля
-                    '\\' -> { // лямбда
+                    Token.EARTH.symbol -> updateRobot(yPoint, xPoint) // земля
+                    Token.LAMBDA.symbol -> { // лямбда
                         updateRobot(yPoint, xPoint)
                         score += 25
                         collectedLambdas++
                     }
-                    '!' -> { // бритва
+                    Token.RAZOR.symbol -> { // бритва
                         updateRobot(yPoint, xPoint)
                         razors++
                     }
-                    'O' -> { // открытый лифт
-                        field[robot.y][robot.x] = ' '
+                    Token.OPENED_LIFT.symbol -> { // открытый лифт
+                        field[robot.y][robot.x] = Token.EMPTY.symbol
                         robot.setNewPoint(yPoint, xPoint)
                         state = State.WON
                     }
-                    '*' -> pushing(move, stones, stones.indexOf(Point(yPoint, xPoint))) // двигаем камни
-                    '@' -> pushing(move, lambdaStones, lambdaStones.indexOf(Point(yPoint, xPoint)))
+                    Token.STONE.symbol -> pushing(move, stones, stones.indexOf(Point(yPoint, xPoint))) // двигаем камни
+                    Token.LAMBDA_STONE.symbol -> pushing(move, lambdaStones, lambdaStones.indexOf(Point(yPoint, xPoint)))
                     in 'A'..'I' -> { // трамплин
                         val char = field[yPoint][xPoint]
                         val robotY = trampolinesPoints[trampolines[char]]!!.y
                         val robotX = trampolinesPoints[trampolines[char]]!!.x
                         val trampolinesToRemove = mutableListOf<Char>()
-                        field[trampolinesPoints[trampolines[char]]!!.y][trampolinesPoints[trampolines[char]]!!.x] = ' '
+                        field[trampolinesPoints[trampolines[char]]!!.y][trampolinesPoints[trampolines[char]]!!.x] = Token.EMPTY.symbol
                         for (entry in trampolines.entries) {
                             if (entry.value == trampolines[char]) {
                                 trampolinesToRemove.add(entry.key)
-                                field[trampolinesPoints[entry.key]!!.y][trampolinesPoints[entry.key]!!.x] = ' '
+                                field[trampolinesPoints[entry.key]!!.y][trampolinesPoints[entry.key]!!.x] = Token.EMPTY.symbol
                             }
                         }
                         for (trampolineToRemove in trampolinesToRemove) {
@@ -174,7 +186,7 @@ class Gameboard(inputField: String) {
                     else -> updateRobot(yPoint, xPoint)
                 }
             }
-            else {}
+            else { return } // сломать метод чтобы не считать индикаторы
         }
         updateIndicators()
     }
@@ -184,9 +196,9 @@ class Gameboard(inputField: String) {
         for (beard in beards) {
             for (y in (beard.y - 1)..(beard.y + 1))
                 for (x in (beard.x - 1)..(beard.x + 1))
-                    if (field[y][x] == ' ') {
+                    if (field[y][x] == Token.EMPTY.symbol) {
                         temporaryBeards.add(Point(y, x))
-                        field[y][x] = 'W'
+                        field[y][x] = Token.BEARD.symbol
                     }
         }
         beards.addAll(temporaryBeards)
@@ -198,9 +210,9 @@ class Gameboard(inputField: String) {
             razors--
             for (y in (robot.y - 1)..(robot.y + 1))
                 for (x in (robot.x - 1)..(robot.x + 1)) {
-                    if (field[y][x] == 'W') {
+                    if (field[y][x] == Token.BEARD.symbol) {
                         beards.remove(Point(y, x))
-                        field[y][x] = ' '
+                        field[y][x] = Token.EMPTY.symbol
                     }
                 }
         }
@@ -235,7 +247,7 @@ class Gameboard(inputField: String) {
             waterLevel++
             numberOfSteps = 0
         }
-        if (collectedLambdas == allLambdas) field[lift.y][lift.x] = 'O'
+        if (collectedLambdas == allLambdas) field[lift.y][lift.x] = Token.OPENED_LIFT.symbol
         if (state == State.DEAD) gameover()
         if (state == State.WON) {
             score += 50 * collectedLambdas
@@ -244,8 +256,8 @@ class Gameboard(inputField: String) {
     }
 
     private fun updateRobot(newY: Int, newX: Int) {
-        field[newY][newX] = 'R'
-        field[robot.y][robot.x] = ' '
+        field[newY][newX] = Token.ROBOT.symbol
+        field[robot.y][robot.x] = Token.EMPTY.symbol
         robot.setNewPoint(newY, newX)
     }
 
@@ -254,25 +266,25 @@ class Gameboard(inputField: String) {
             val currentStone = stones.get(i)
             val cellUnderStone = field[currentStone.y - 1][currentStone.x]
             when (cellUnderStone) {
-                ' ' -> {
-                    field[currentStone.y][currentStone.x] = ' '
+                Token.EMPTY.symbol -> {
+                    field[currentStone.y][currentStone.x] = Token.EMPTY.symbol
                     stones.set(i, Point(currentStone.y - 1, currentStone.x))
                     if (Point(currentStone.y - 2, currentStone.x) == robot) state = State.DEAD
                 }
-                '\\' -> {
-                    if (field[currentStone.y][currentStone.x + 1] == ' ' && field[currentStone.y - 1][currentStone.x + 1] == ' ') {
-                        field[currentStone.y][currentStone.x] = ' '
+                Token.LAMBDA.symbol -> {
+                    if (field[currentStone.y][currentStone.x + 1] == Token.EMPTY.symbol && field[currentStone.y - 1][currentStone.x + 1] == Token.EMPTY.symbol) {
+                        field[currentStone.y][currentStone.x] = Token.EMPTY.symbol
                         stones.set(i, Point(currentStone.y - 1, currentStone.x + 1))
                         if (Point(currentStone.y - 2, currentStone.x + 1) == robot) state = State.DEAD
                     }
                 }
-                '*', '@' -> {
-                    if (field[currentStone.y][currentStone.x + 1] == ' ' && field[currentStone.y - 1][currentStone.x + 1] == ' ') {
-                        field[currentStone.y][currentStone.x] = ' '
+                Token.STONE.symbol, Token.LAMBDA_STONE.symbol -> {
+                    if (field[currentStone.y][currentStone.x + 1] == Token.EMPTY.symbol && field[currentStone.y - 1][currentStone.x + 1] == Token.EMPTY.symbol) {
+                        field[currentStone.y][currentStone.x] = Token.EMPTY.symbol
                         stones.set(i, Point(currentStone.y - 1, currentStone.x + 1))
                         if (Point(currentStone.y - 2, currentStone.x + 1) == robot) state = State.DEAD
-                    } else if (field[currentStone.y][currentStone.x - 1] == ' ' && field[currentStone.y - 1][currentStone.x - 1] == ' ') {
-                        field[currentStone.y][currentStone.x] = ' '
+                    } else if (field[currentStone.y][currentStone.x - 1] == Token.EMPTY.symbol && field[currentStone.y - 1][currentStone.x - 1] == Token.EMPTY.symbol) {
+                        field[currentStone.y][currentStone.x] = Token.EMPTY.symbol
                         stones.set(i, Point(currentStone.y - 1, currentStone.x - 1))
                         if (Point(currentStone.y - 2, currentStone.x - 1) == robot) state = State.DEAD
                     }
@@ -285,38 +297,38 @@ class Gameboard(inputField: String) {
             val currentStone = lambdaStones.get(i)
             val cellUnderStone = field[currentStone.y - 1][currentStone.x]
             when (cellUnderStone) {
-                ' ' -> {
-                    if (field[currentStone.y - 2][currentStone.x] != ' ') { // разбиение
-                        field[currentStone.y][currentStone.x] = ' '
+                Token.EMPTY.symbol -> {
+                    if (field[currentStone.y - 2][currentStone.x] != Token.EMPTY.symbol) { // разбиение
+                        field[currentStone.y][currentStone.x] = Token.EMPTY.symbol
                         lambdas.add(Point(currentStone.y - 1, currentStone.x))
                         lambdaStones.set(i, Point(field.size - 1, 0)) //поставить в верхний левый угол
                         if (Point(currentStone.y - 2, currentStone.x) == robot) state = State.DEAD
                     } else { // падение
-                        field[currentStone.y][currentStone.x] = ' '
+                        field[currentStone.y][currentStone.x] = Token.EMPTY.symbol
                         lambdaStones.set(i, Point(currentStone.y - 1, currentStone.x))
                     }
                 }
-                '\\' -> {
-                    if (field[currentStone.y][currentStone.x + 1] == ' ' && field[currentStone.y - 1][currentStone.x + 1] == ' ') {
-                        field[currentStone.y][currentStone.x] = ' '
-                        if (field[currentStone.y - 2][currentStone.x + 1] != ' ') { // разбиение
+                Token.LAMBDA.symbol -> {
+                    if (field[currentStone.y][currentStone.x + 1] == Token.EMPTY.symbol && field[currentStone.y - 1][currentStone.x + 1] == Token.EMPTY.symbol) {
+                        field[currentStone.y][currentStone.x] = Token.EMPTY.symbol
+                        if (field[currentStone.y - 2][currentStone.x + 1] != Token.EMPTY.symbol) { // разбиение
                             lambdas.add(Point(currentStone.y - 1, currentStone.x + 1))
                             lambdaStones.set(i, Point(field.size - 1, 0)) //поставить в верхний левый угол
                             if (Point(currentStone.y - 2, currentStone.x + 1) == robot) state = State.DEAD
                         } else lambdaStones.set(i, Point(currentStone.y - 1, currentStone.x + 1))
                     }
                 }
-                '*', '@' -> {
-                    if (field[currentStone.y][currentStone.x + 1] == ' ' && field[currentStone.y - 1][currentStone.x + 1] == ' ') {
-                        field[currentStone.y][currentStone.x] = ' '
-                        if (field[currentStone.y - 2][currentStone.x + 1] != ' ') { // разбиение
+                Token.STONE.symbol, Token.LAMBDA_STONE.symbol -> {
+                    if (field[currentStone.y][currentStone.x + 1] == Token.EMPTY.symbol && field[currentStone.y - 1][currentStone.x + 1] == Token.EMPTY.symbol) {
+                        field[currentStone.y][currentStone.x] = Token.EMPTY.symbol
+                        if (field[currentStone.y - 2][currentStone.x + 1] != Token.EMPTY.symbol) { // разбиение
                             lambdas.add(Point(currentStone.y - 1, currentStone.x + 1))
                             lambdaStones.set(i, Point(field.size - 1, 0)) //поставить в верхний левый угол
                             if (Point(currentStone.y - 2, currentStone.x + 1) == robot) state = State.DEAD
                         } else lambdaStones.set(i, Point(currentStone.y - 1, currentStone.x + 1))
-                    } else if (field[currentStone.y][currentStone.x - 1] == ' ' && field[currentStone.y - 1][currentStone.x - 1] == ' ') {
-                        field[currentStone.y][currentStone.x] = ' '
-                        if (field[currentStone.y - 2][currentStone.x - 1] != ' ') { // разбиение
+                    } else if (field[currentStone.y][currentStone.x - 1] == Token.EMPTY.symbol && field[currentStone.y - 1][currentStone.x - 1] == Token.EMPTY.symbol) {
+                        field[currentStone.y][currentStone.x] = Token.EMPTY.symbol
+                        if (field[currentStone.y - 2][currentStone.x - 1] != Token.EMPTY.symbol) { // разбиение
                             lambdas.add(Point(currentStone.y - 1, currentStone.x - 1))
                             lambdaStones.set(i, Point(field.size - 1, 0)) //поставить в верхний левый угол
                             if (Point(currentStone.y - 2, currentStone.x - 1) == robot) state = State.DEAD
@@ -326,15 +338,15 @@ class Gameboard(inputField: String) {
             }
         }
         for (lambda in lambdas) {
-            field[lambda.y][lambda.x] = '\\'
+            field[lambda.y][lambda.x] = Token.LAMBDA.symbol
         }
         lambdaStones = ArrayList(lambdaStones.toSet()) // удаление одинаковых камней
         for (lambdaStone in lambdaStones) {
-            field[lambdaStone.y][lambdaStone.x] = '@'
+            field[lambdaStone.y][lambdaStone.x] = Token.LAMBDA_STONE.symbol
         }
         stones = ArrayList(stones.toSet()) // удаление одинаковых камней
         for (stone in stones) {
-            field[stone.y][stone.x] = '*'
+            field[stone.y][stone.x] = Token.STONE.symbol
         }
     }
 
@@ -342,13 +354,13 @@ class Gameboard(inputField: String) {
         val yPoint = robot.y + move.y
         val xPoint = robot.x + move.x
         val newXPoint = robot.x + 2 * move.x
-        if (field[yPoint][newXPoint] == ' ' && (move == Move.RIGHT || move == Move.LEFT)) {
+        if (field[yPoint][newXPoint] == Token.EMPTY.symbol && (move == Move.RIGHT || move == Move.LEFT)) {
             val oldPoint = Point(yPoint, xPoint)
             val newPoint = Point(yPoint, newXPoint)
-            field[oldPoint.y][oldPoint.x] = ' '
+            field[oldPoint.y][oldPoint.x] = Token.EMPTY.symbol
             array.set(i, newPoint)
-            if (array == stones) field[yPoint][newXPoint] = '*' // появление камня на новой позиции
-            else field[yPoint][newXPoint] = '@'
+            if (array == stones) field[yPoint][newXPoint] = Token.STONE.symbol // появление камня на новой позиции
+            else field[yPoint][newXPoint] = Token.LAMBDA_STONE.symbol
             updateRobot(yPoint, xPoint)
         } else {
         }
@@ -388,7 +400,7 @@ class Gameboard(inputField: String) {
         val listOfLambdas = mutableListOf<Point>()
         for (i in 0..(field.size - 1))
             for (j in 0..(field[i].size - 1))
-                if (field[i][j] == '\\') listOfLambdas.add(Point(i, j))
+                if (field[i][j] == Token.LAMBDA.symbol) listOfLambdas.add(Point(i, j))
         return listOfLambdas
     }
 
