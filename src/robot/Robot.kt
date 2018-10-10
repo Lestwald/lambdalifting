@@ -44,7 +44,7 @@ class Robot(inputField: String) {
                 for (i in (y - 1)..(y + 1))
                     for (j in (x - 1)..(x + 1))
                         if (i == y || j == x) {
-                            if (distances[i][j] == Int.MAX_VALUE && (field[i][j] == ' ' || field[i][j] == '.' || field[i][j] == '\\' || field[i][j] == 'O' || field[i][j] == '!')) {
+                            if (distances[i][j] == Int.MAX_VALUE && gameboard.isPassable(field[i][j])) {
                                 distances[i][j] = distance + 1
                                 temporaryPoints.add(Point(i, j))
                             }
@@ -109,17 +109,13 @@ class Robot(inputField: String) {
 
     private fun canMakeMove(): String {
         var result = ""
-        if (field[robot.y][robot.x + 1] == ' ' || field[robot.y][robot.x + 1] == '.' || field[robot.y][robot.x + 1] == 'O'
-                || field[robot.y][robot.x + 1] == '\\' || field[robot.y][robot.x + 1] == '*' && field[robot.y][robot.x + 2] == ' ')
+        if (gameboard.isPassable(field[robot.y][robot.x + 1]) || gameboard.isStoneOrLambdaStone(field[robot.y][robot.x + 1]) && field[robot.y][robot.x + 2] == ' ')
             result += 'R'
-        if (field[robot.y][robot.x - 1] == ' ' || field[robot.y][robot.x - 1] == '.' || field[robot.y][robot.x - 1] == 'O'
-                || field[robot.y][robot.x - 1] == '\\' || field[robot.y][robot.x - 1] == '*' && field[robot.y][robot.x - 2] == ' ')
+        if (gameboard.isPassable(field[robot.y][robot.x - 1]) || gameboard.isStoneOrLambdaStone(field[robot.y][robot.x - 1]) && field[robot.y][robot.x - 2] == ' ')
             result += 'L'
-        if (field[robot.y + 1][robot.x] == ' ' || field[robot.y + 1][robot.x] == '.' || field[robot.y + 1][robot.x] == 'O'
-                || field[robot.y + 1][robot.x] == '\\')
+        if (gameboard.isPassable(field[robot.y + 1][robot.x]))
             result += 'U'
-        if (field[robot.y - 1][robot.x] == ' ' || field[robot.y - 1][robot.x] == '.' || field[robot.y - 1][robot.x] == 'O'
-                || field[robot.y - 1][robot.x] == '\\')
+        if (gameboard.isPassable(field[robot.y - 1][robot.x]))
             result += 'D'
         return result
     }
@@ -160,8 +156,8 @@ class Robot(inputField: String) {
     private fun isLambdaUnreachable(lambda: Point): Boolean {
         val x = lambda.x
         val y = lambda.y
-        return (field[y + 1][x] == '*' && !(field[y][x + 1] == ' ' || field[y][x + 1] == '.' || field[y][x + 1] == '\\' || field[y][x + 1] == 'O' || field[y][x + 1] == '!' || field[y][x + 1] == 'R')
-                && !(field[y][x - 1] == ' ' || field[y][x - 1] == '.' || field[y][x - 1] == '\\' || field[y][x - 1] == 'O' || field[y][x - 1] == '!' || field[y][x - 1] == 'R'))
+        return (field[y + 1][x] == '*' && !(gameboard.isPassable(field[y][x + 1]) || field[y][x + 1] == 'R')
+                && !(gameboard.isPassable(field[y][x - 1]) || field[y][x - 1] == 'R'))
     }
 
     fun go(): String {
@@ -243,7 +239,7 @@ class Robot(inputField: String) {
                 if (numberOfLambdas1 != numberOfLambdas) break
             }
             if (gameboard.getState() == Gameboard.State.WON) return globalPath
-            if (listOfLambdas.isEmpty() && (isLiftBlocked() || listOfUnreachableLambdas.isNotEmpty())|| isRobotBlocked() || gameboard.getState() == Gameboard.State.DEAD) {
+            if (listOfLambdas.isEmpty() && (isLiftBlocked() || listOfUnreachableLambdas.isNotEmpty()) || isRobotBlocked() || gameboard.getState() == Gameboard.State.DEAD) {
                 var step = 0
                 var maxScore = 0
                 for (k in 0 until listOfChanges.size) {
