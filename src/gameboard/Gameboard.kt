@@ -4,25 +4,42 @@ import java.io.File
 
 class Gameboard(inputField: String) {
 
-    private val field = mutableListOf<MutableList<Char>>()
-    private var stones = ArrayList<Point>()
-    private var lambdaStones = ArrayList<Point>()
-    private var trampolinesPoints = mutableMapOf<Char, Point>() // координаты трамплинов
-    private var trampolines = mutableMapOf<Char, Char>() // какой трамплин куда ведёт
-    private var robot = Point(-1, -1)
-    private val beards = mutableListOf<Point>()
-    private var score = 0
-    private var growth = 25 // количество шагов через которое вырастет борода
-    private var currentGrowth = 0
-    private var razors = 0
-    private var flooding = 0    // скорость прибывания воды (количество шагов через которое вода поднимается на 1 уровень)
-    private var waterLevel = 0   // уровень воды
-    private var waterproof = 10 // сколько шагов без выныривания можно пройти
-    private var currentWaterproof = 10
-    private var numberOfSteps = 0
-    private var collectedLambdas = 0
-    private var allLambdas = 0
-    private var lift = Point(-1, -1)
+    val field = mutableListOf<MutableList<Char>>()
+    var stones = ArrayList<Point>()
+        private set
+    var lambdaStones = ArrayList<Point>()
+        private set
+    var trampolinesPoints = mutableMapOf<Char, Point>() // координаты трамплинов
+        private set
+    var trampolines = mutableMapOf<Char, Char>() // какой трамплин куда ведёт
+        private set
+    var robot = Point(-1, -1)
+        private set
+    val beards = mutableListOf<Point>()
+    var score = 0
+        private set
+    var growth = 25 // количество шагов через которое вырастет борода
+        private set
+    var currentGrowth = 0
+        private set
+    var razors = 0
+        private set
+    var flooding = 0    // скорость прибывания воды (количество шагов через которое вода поднимается на 1 уровень)
+        private set
+    var waterLevel = 0   // уровень воды
+        private set
+    var waterproof = 10 // сколько шагов без выныривания можно пройти
+        private set
+    var currentWaterproof = 10
+        private set
+    var numberOfSteps = 0
+        private set
+    var collectedLambdas = 0
+        private set
+    var allLambdas = 0
+        private set
+    var lift = Point(-1, -1)
+        private set
 
     init {
         val lineList = mutableListOf<String>()
@@ -124,7 +141,8 @@ class Gameboard(inputField: String) {
         DOWN(-1, 0);
     }
 
-    private var state: State = State.LIVE
+    var state: State = State.LIVE
+        private set
 
     fun act(commands: String) {
         for (command in commands) {
@@ -147,7 +165,9 @@ class Gameboard(inputField: String) {
             val yPoint = robot.y + move.y
             val xPoint = robot.x + move.x
             if (isPassable(field[yPoint][xPoint]) &&
-                    field[yPoint][xPoint] !in '1'..'9') { // если след координата робота НЕ стена, НЕ борода, НЕ закрытый лифт, НЕ выход трамплина
+                    field[yPoint][xPoint] !in '1'..'9' ||
+                    field[yPoint][xPoint] in 'A'..'I' ||
+                    isStoneOrLambdaStone(field[yPoint][xPoint]) && field[yPoint][xPoint + move.x] == Token.EMPTY.symbol) { // если след координата робота НЕ стена, НЕ борода, НЕ закрытый лифт, НЕ выход трамплина
                 when (field[yPoint][xPoint]) {
                     Token.EARTH.symbol -> updateRobot(yPoint, xPoint) // земля
                     Token.LAMBDA.symbol -> { // лямбда
@@ -370,30 +390,6 @@ class Gameboard(inputField: String) {
         stones.clear()
         lambdaStones.clear()
         //println(score)
-    }
-
-    fun getFlooding(): Int {
-        return flooding
-    }
-
-    fun getScore(): Int {
-        return score
-    }
-
-    fun getState(): State {
-        return state
-    }
-
-    fun getField(): MutableList<MutableList<Char>> {
-        return field
-    }
-
-    fun getRobot(): Point {
-        return robot
-    }
-
-    fun getLift(): Point {
-        return lift
     }
 
     fun getListOfLambdas(): MutableList<Point> {

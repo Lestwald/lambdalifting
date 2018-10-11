@@ -6,5 +6,5 @@ fun start(inputFileName: String) {
     val robot = Robot(inputFileName)
     val path = robot.go()
     gameboard.act(path)
-    println("$inputFileName: ${gameboard.getScore()} $path")
+    println("$inputFileName: ${gameboard.score} $path")
 }
